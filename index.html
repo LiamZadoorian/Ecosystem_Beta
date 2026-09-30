@@ -1,0 +1,1306 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="theme-color" content="#f3f3e9">
+	<title>Ecosystem Simulator</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+	<style>
+		:root {
+			color-scheme: light;
+			--paper: #f3f3e9;
+			--panel: #fafaf4;
+			--ink: #202c24;
+			--muted: #798078;
+			--line: #dfe2d6;
+			--forest: #315a44;
+			--moss: #71945d;
+			--mint: #dce9d3;
+			--aqua: #d6e9e2;
+			--coral: #db795c;
+			--sun: #e6c667;
+			--mono: "DM Mono", monospace;
+			--sans: "DM Sans", sans-serif;
+			--serif: "Fraunces", Georgia, serif;
+		}
+
+		* { box-sizing: border-box; }
+
+		body {
+			min-width: 320px;
+			min-height: 100vh;
+			margin: 0;
+			color: var(--ink);
+			background: var(--paper);
+			font-family: var(--sans);
+			font-size: 13px;
+		}
+
+		button { color: inherit; font: inherit; }
+		button:focus-visible, [tabindex="0"]:focus-visible { outline: 2px solid var(--coral); outline-offset: 3px; }
+
+		.app {
+			display: grid;
+			grid-template-rows: 62px minmax(0, 1fr) auto;
+			min-height: 100vh;
+			padding: 0 28px 22px;
+			gap: 0;
+		}
+
+		.topbar {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			border-bottom: 1px solid var(--line);
+		}
+
+		.brand, .top-actions, .status, .sim-controls, .dock-tabs, .stage-tools {
+			display: flex;
+			align-items: center;
+		}
+
+		.brand { gap: 10px; color: var(--forest); font-weight: 700; letter-spacing: .02em; }
+		.brand-mark { display: grid; width: 27px; height: 27px; place-items: center; border-radius: 9px 9px 9px 3px; background: var(--forest); color: #f7f5e9; font-size: 15px; }
+		.brand-note { padding-left: 10px; border-left: 1px solid var(--line); color: var(--muted); font-size: 11px; font-weight: 500; }
+		.top-actions { gap: 18px; }
+		.status { gap: 7px; color: var(--muted); font-size: 11px; }
+		.status-dot { width: 7px; height: 7px; border-radius: 50%; background: #85a76a; box-shadow: 0 0 0 3px #e4ebdb; }
+		.status.is-paused .status-dot { background: var(--sun); box-shadow: 0 0 0 3px #f4edcf; }
+		.icon-button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid var(--line); border-radius: 8px; background: transparent; cursor: pointer; font-size: 15px; }
+		.icon-button:hover { background: white; }
+
+		.workspace { display: grid; grid-template-columns: 230px minmax(0, 1fr); min-height: 0; gap: 24px; padding: 23px 0 20px; }
+		.workspace.sidebar-collapsed { grid-template-columns: minmax(0, 1fr); }
+		.sidebar { display: flex; flex-direction: column; min-width: 0; overflow: hidden; transition: width .2s ease, opacity .2s ease; }
+		.sidebar.collapsed { display: none; }
+		.side-head { display: flex; align-items: center; justify-content: space-between; padding: 2px 0 17px; }
+		.eyebrow { margin: 0; color: var(--muted); font: 500 10px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+		.side-title { margin: 4px 0 0; font-size: 16px; font-weight: 600; }
+		.collapse-button { flex: 0 0 auto; width: 27px; height: 27px; border: 0; border-radius: 6px; background: transparent; color: var(--muted); cursor: pointer; font-size: 18px; }
+		.collapse-button:hover { background: #e9ebe1; color: var(--ink); }
+		.catalog-hint { margin: 0 0 13px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+		.seed-list { display: grid; gap: 8px; }
+		.terrain-key { margin-top: 18px; padding-top: 13px; border-top: 1px solid var(--line); }
+		.terrain-title { margin: 0 0 9px; color: var(--muted); font: 500 9px var(--mono); letter-spacing: .1em; text-transform: uppercase; }
+		.terrain-legend { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+		.terrain-legend-item { display: flex; align-items: center; gap: 6px; min-width: 0; color: #657063; font-size: 9px; }
+		.terrain-swatch { width: 12px; height: 12px; flex: 0 0 auto; border: 1px solid #ffffffad; border-radius: 2px; background: var(--terrain-color); }
+		.seed-card { display: grid; grid-template-columns: 40px minmax(0, 1fr) 24px; align-items: center; min-height: 62px; padding: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); cursor: pointer; text-align: left; transition: transform .16s ease, border-color .16s ease, box-shadow .16s ease; }
+		.seed-card:hover { transform: translateY(-1px); border-color: #bdcbb5; box-shadow: 0 4px 14px #35452b0d; }
+		.seed-art { display: grid; width: 25px; height: 25px; place-items: center; border: 2px solid #ffffffb3; border-radius: 3px; background: var(--species-color); }
+		.seed-copy { min-width: 0; }
+		.seed-name { display: block; overflow: hidden; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+		.seed-kind { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+		.add-mark { display: grid; width: 22px; height: 22px; place-items: center; border: 1px solid var(--line); border-radius: 6px; color: var(--muted); font-size: 15px; }
+		.seed-card:hover .add-mark { border-color: var(--forest); background: var(--forest); color: white; }
+		.side-foot { display: flex; align-items: center; gap: 7px; margin-top: auto; padding-top: 16px; color: var(--muted); font: 10px var(--mono); }
+		.side-foot span { color: var(--forest); }
+
+		.main-column { display: grid; grid-template-rows: auto minmax(330px, 1fr); min-width: 0; min-height: 0; gap: 16px; }
+		.habitat-layout { display: grid; grid-template-columns: minmax(0, 1fr) 210px; min-height: 0; gap: 14px; }
+		.heading-row { display: flex; align-items: end; justify-content: space-between; min-height: 74px; }
+		.title-stack { min-width: 0; }
+		.title-kicker { display: flex; align-items: center; gap: 8px; margin: 0 0 6px; color: var(--muted); font: 10px var(--mono); text-transform: uppercase; }
+		.title-kicker span { display: inline-block; width: 18px; height: 1px; background: var(--coral); }
+		h1 { margin: 0; font: 500 clamp(27px, 3vw, 36px)/1 var(--serif); letter-spacing: 0; }
+		.subtitle { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
+		.heading-meta { display: flex; align-items: center; gap: 20px; padding-bottom: 2px; }
+		.metric { display: flex; flex-direction: column; gap: 4px; }
+		.metric-label { color: var(--muted); font: 9px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+		.metric-value { font: 500 15px var(--mono); }
+		.heading-rule { width: 1px; height: 30px; background: var(--line); }
+
+		.stage {
+			position: relative;
+			width: 100%;
+			aspect-ratio: 3 / 2;
+			min-height: 330px;
+			overflow: hidden;
+			isolation: isolate;
+			border: 1px solid #d9ddce;
+			border-radius: 11px;
+			background-color: #dfe8d8;
+			transition: border-color .2s ease, background-color .2s ease;
+		}
+		.stage-world { --grid-columns: 24; --grid-rows: 16; position: absolute; z-index: 1; inset: 0; overflow: visible; transform: scale(var(--zoom, 1)); transform-origin: center; transition: transform .2s ease; background-color: #dfe8d8; background-image: linear-gradient(to right, #52634a32 1px, transparent 1px), linear-gradient(to bottom, #52634a32 1px, transparent 1px); background-size: calc(100% / var(--grid-columns)) calc(100% / var(--grid-rows)); }
+		.terrain-block { position: absolute; display: grid; place-items: center; overflow: hidden; border: 2px solid #ffffff70; border-radius: 3px; background: var(--terrain-color); box-shadow: 0 2px 8px #34422a12; color: #243424; font-size: clamp(12px, 2vw, 24px); line-height: 1; text-shadow: 0 1px 2px #ffffffa8; opacity: .95; pointer-events: none; }
+		.stage.drag-over { border-color: var(--forest); background-color: #e0eadc; }
+		.stage-topline { position: absolute; z-index: 3; top: 15px; right: 16px; left: 16px; display: flex; align-items: center; justify-content: space-between; pointer-events: none; }
+		.stage-label, .stage-coordinate { color: #526151; font: 9px var(--mono); letter-spacing: .06em; text-transform: uppercase; }
+		.stage-label { display: flex; align-items: center; gap: 8px; }
+		.stage-label:before { width: 6px; height: 6px; border-radius: 50%; background: var(--moss); content: ""; }
+		.stage-tools { position: absolute; z-index: 3; right: 14px; bottom: 14px; gap: 5px; }
+		.stage-tool { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid #d0d8c8; border-radius: 7px; background: #f8f8f0e8; color: #50634f; cursor: pointer; font: 13px var(--mono); }
+		.stage-tool:hover { background: white; }
+		.organism { position: absolute; z-index: 1; display: block; width: var(--entity-size); height: var(--entity-size); padding: 0; transform: translate(-50%, -50%) rotate(var(--heading, 0rad)); border: 2px solid #ffffffd9; border-radius: 3px; background: var(--species-color); box-shadow: 0 2px 7px #2537212b; cursor: pointer; transition: box-shadow .16s ease; }
+		.organism:before { position: absolute; top: 30%; right: -2px; width: 20%; height: 40%; background: #ffffffed; clip-path: polygon(0 0, 100% 50%, 0 100%); content: ""; }
+		.organism.backing-up:after { position: absolute; top: 30%; left: -2px; width: 20%; height: 40%; background: #ffffffa8; clip-path: polygon(100% 0, 0 50%, 100% 100%); content: ""; }
+		.organism:hover, .organism.selected { z-index: 2; box-shadow: 0 0 0 3px #263728ad, 0 3px 9px #25372138; }
+		.organism-name { position: absolute; top: calc(100% + 5px); left: 50%; padding: 2px 4px; border-radius: 3px; background: #f8f8f0dc; color: #344333; font-size: 9px; font-weight: 600; white-space: nowrap; transform: translateX(-50%) rotate(calc(-1 * var(--heading, 0rad))); pointer-events: none; }
+		@keyframes arrive { from { opacity: 0; scale: .78; } to { opacity: 1; scale: 1; } }
+
+		.details-panel { min-width: 0; padding: 14px; overflow: auto; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); }
+		.details-head { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+		.details-head .eyebrow { color: var(--forest); }
+		.inspector { display: block; width: auto; padding: 12px 0 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+		.inspector-head { display: flex; align-items: center; gap: 9px; padding-bottom: 11px; border-bottom: 1px solid var(--line); }
+		.inspector-glyph { display: grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; border-radius: 10px; background: var(--entity-wash); font-size: 20px; }
+		.inspector-name { margin: 0; font-size: 12px; font-weight: 700; }
+		.inspector-id { margin: 3px 0 0; color: var(--muted); font: 9px var(--mono); }
+		.trait-list { display: grid; gap: 9px; margin: 11px 0 0; }
+		.trait { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+		.trait-name { color: #72796e; font-size: 10px; }
+		.trait-value { font: 10px var(--mono); }
+		.trait-track { grid-column: 1 / -1; height: 3px; margin-top: -5px; overflow: hidden; border-radius: 3px; background: #e8e9de; }
+		.trait-fill { display: block; height: 100%; border-radius: inherit; background: var(--forest); }
+		.empty-state { position: absolute; inset: 48px; display: grid; place-content: center; justify-items: center; gap: 9px; color: #62745f; text-align: center; pointer-events: none; }
+		.empty-state[hidden] { display: none; }
+		.empty-icon { font-size: 28px; opacity: .72; }
+		.empty-title { margin: 0; font: 500 20px var(--serif); }
+		.empty-copy { max-width: 230px; margin: 0; color: #788273; font-size: 11px; line-height: 1.5; }
+		.inspect-empty { padding: 18px 2px; color: var(--muted); font-size: 11px; line-height: 1.55; }
+		.habitat-resource { position: absolute; z-index: 1; display: grid; width: var(--cell-size); height: var(--cell-size); place-items: center; border: 1px solid #ffffffa6; border-radius: 3px; background: #cbd683; color: #485846; font-size: 18px; transform: translate(-50%, -50%); }
+		.habitat-resource small { padding: 1px 3px; border-radius: 3px; background: #fbfaf0e8; color: #394532; font: 8px var(--mono); }
+		.habitat-resource.amount-hidden .food-amount { display: none; }
+
+		.dock { overflow: hidden; border: 1px solid var(--line); border-radius: 9px; background: var(--panel); transition: height .2s ease; }
+		.dock-head { display: flex; align-items: center; justify-content: space-between; min-height: 43px; padding: 0 14px; border-bottom: 1px solid var(--line); }
+		.dock.collapsed .dock-head { border-bottom-color: transparent; }
+		.dock-tabs { align-self: stretch; gap: 17px; }
+		.dock-tab { position: relative; display: grid; align-items: center; padding: 0; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; }
+		.dock-tab.active { color: var(--forest); font-weight: 600; }
+		.dock-tab.active:after { position: absolute; right: 0; bottom: -1px; left: 0; height: 2px; background: var(--forest); content: ""; }
+		.sim-controls { gap: 7px; }
+		.play-button { display: flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 10px; border: 1px solid var(--forest); border-radius: 6px; background: var(--forest); color: white; cursor: pointer; font-size: 10px; }
+		.play-button:hover { background: #244734; }
+		.dock-body { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); min-height: 60px; }
+		.dock-stat { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 11px 14px; border-right: 1px solid var(--line); }
+		.dock-stat:last-child { border-right: 0; }
+		.stat-icon { display: grid; width: 27px; height: 27px; flex: 0 0 auto; place-items: center; border-radius: 8px; background: #e8eee0; color: var(--forest); font-size: 13px; }
+		.dock-stat:nth-child(2) .stat-icon { background: #e0ede7; }
+		.dock-stat:nth-child(3) .stat-icon { background: #f5edcf; }
+		.dock-stat:nth-child(4) .stat-icon { background: #f4e4d9; }
+		.stat-copy { min-width: 0; }
+		.stat-label { display: block; overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+		.stat-value { display: block; margin-top: 3px; font: 11px var(--mono); }
+		.food-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-column: 1 / -1; align-items: end; gap: 12px; padding: 10px; }
+		.food-settings label { display: grid; gap: 4px; color: var(--muted); font-size: 9px; }
+		.food-settings input[type="number"] { width: 100%; min-width: 0; height: 31px; padding: 0 7px; border: 1px solid var(--line); border-radius: 5px; background: white; color: var(--ink); font: 11px var(--mono); }
+		.food-visibility { display: flex; align-items: center; gap: 6px; color: #5f695b; font-size: 10px; white-space: nowrap; }
+		.food-visibility input { accent-color: var(--forest); }
+		.food-next { align-self: center; color: var(--muted); font: 10px var(--mono); }
+		.rename-field { display: grid; gap: 5px; margin-top: 12px; }
+		.rename-field label { color: var(--muted); font-size: 9px; }
+		.rename-field input { width: 100%; height: 32px; padding: 0 8px; border: 1px solid var(--line); border-radius: 5px; background: white; font: 11px var(--sans); }
+		.create-species { display: flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; margin-top: 12px; border: 1px solid var(--forest); border-radius: 7px; background: transparent; color: var(--forest); cursor: pointer; font-size: 11px; font-weight: 600; }
+		.create-species:hover { background: var(--forest); color: white; }
+		.species-dialog { width: min(460px, calc(100% - 28px)); max-height: min(700px, calc(100% - 28px)); padding: 0; overflow: auto; border: 1px solid var(--line); border-radius: 11px; background: var(--panel); color: var(--ink); box-shadow: 0 18px 65px #18271b38; }
+		.species-dialog::backdrop { background: #24342d66; backdrop-filter: blur(3px); }
+		.dialog-head { display: flex; align-items: start; justify-content: space-between; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); }
+		.dialog-head h2 { margin: 0; font: 500 23px var(--serif); }
+		.dialog-head p { margin: 5px 0 0; color: var(--muted); font-size: 11px; }
+		.dialog-form { display: grid; gap: 15px; padding: 18px 20px 20px; }
+		.form-row { display: grid; grid-template-columns: 1fr 92px; gap: 12px; }
+		.form-field { display: grid; gap: 6px; }
+		.form-field label, .range-field label { color: #596358; font-size: 10px; font-weight: 600; }
+		.form-field input, .form-field select { width: 100%; min-width: 0; height: 36px; padding: 0 9px; border: 1px solid var(--line); border-radius: 6px; background: white; color: var(--ink); font: 12px var(--sans); }
+		.range-fields { display: grid; gap: 11px; padding: 13px; border: 1px solid var(--line); border-radius: 8px; }
+		.range-field { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px; }
+		.range-field input { grid-column: 1 / -1; width: 100%; accent-color: var(--forest); }
+		.range-field output { color: var(--forest); font: 10px var(--mono); }
+		.dialog-actions { display: flex; justify-content: end; gap: 8px; }
+		.dialog-actions button { min-height: 34px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: transparent; cursor: pointer; font-size: 11px; }
+		.dialog-actions .submit-species { border-color: var(--forest); background: var(--forest); color: white; }
+		.footer-note { position: fixed; right: 31px; bottom: 5px; color: #96998e; font: 8px var(--mono); }
+
+		@media (min-height: 850px) { .app { grid-template-rows: 66px minmax(0, 1fr) auto; } .workspace { padding-top: 30px; padding-bottom: 24px; } .main-column { grid-template-rows: auto minmax(400px, 1fr); } }
+		@media (max-width: 800px) {
+			.app { padding: 0 18px 20px; }
+			.workspace { grid-template-columns: 180px minmax(0, 1fr); gap: 14px; }
+			.habitat-layout { grid-template-columns: minmax(0, 1fr) 190px; gap: 10px; }
+			.heading-meta { gap: 11px; }
+			.metric:last-child, .heading-rule:last-of-type { display: none; }
+			.dock-body { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+			.dock-stat:nth-child(3) { border-right: 0; }
+			.dock-stat:nth-child(-n+3) { border-bottom: 1px solid var(--line); }
+			.food-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+		}
+		@media (max-width: 760px) {
+			.app { grid-template-rows: 54px minmax(0, 1fr) auto; padding: 0 13px 22px; }
+			.brand-note, .status { display: none; }
+			.workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(430px, 1fr) auto; gap: 12px; padding: 15px 0 13px; }
+			.sidebar { order: 2; }
+			.sidebar.collapsed { display: none; }
+			.side-head { padding: 0 0 8px; }
+			.side-title { font-size: 14px; }
+			.catalog-hint, .side-foot { display: none; }
+			.seed-list { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+			.seed-card { min-height: 55px; grid-template-columns: 34px minmax(0, 1fr) 20px; padding: 6px; }
+			.seed-art { width: 31px; height: 31px; font-size: 18px; }
+			.seed-name { font-size: 11px; }
+			.seed-kind { font-size: 9px; }
+			.add-mark { width: 19px; height: 19px; }
+			.main-column { grid-template-rows: auto auto; gap: 11px; }
+			.habitat-layout { grid-template-columns: minmax(0, 1fr); }
+			.details-panel { max-height: 255px; }
+			.heading-row { min-height: 64px; }
+			h1 { font-size: 29px; }
+			.subtitle { font-size: 10px; }
+			.heading-meta { gap: 9px; }
+			.metric-label { font-size: 8px; }
+			.metric-value { font-size: 12px; }
+			.heading-rule { height: 24px; }
+			.stage { aspect-ratio: 1; min-height: 0; }
+			.stage-world { --grid-columns: 16; --grid-rows: 16; }
+			.dock-head { display: grid; grid-template-columns: 1fr; gap: 4px; min-height: 42px; padding: 5px 9px; }
+			.dock-tabs { gap: 11px; }
+			.dock-tab { font-size: 10px; }
+			.sim-controls { gap: 5px; }
+			.play-button { padding: 0 7px; font-size: 9px; }
+			.dock-stat { padding: 9px; }
+			.footer-note { right: 14px; }
+		}
+		@media (prefers-reduced-motion: reduce) { *, *:before, *:after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+	</style>
+</head>
+<body>
+	<div class="app">
+		<header class="topbar">
+			<div class="brand"><span class="brand-mark" aria-hidden="true">✳</span><span>Ecosystem Simulator</span><span class="brand-note">Beta</span></div>
+			<div class="top-actions">
+				<span class="status is-paused" id="runStatus"><span class="status-dot"></span><span id="statusText">Simulation paused</span></span>
+			</div>
+		</header>
+
+		<main class="workspace">
+			<aside class="sidebar" id="sidebar" aria-label="Organism seed catalog">
+				<div class="side-head">
+					<div><p class="eyebrow">Sprite List</p><h2 class="side-title">Organisms</h2></div>
+					<button class="collapse-button" id="sidebarCollapse" type="button" title="Collapse lifeform catalog" aria-label="Collapse lifeform catalog">‹</button>
+				</div>
+				<p class="catalog-hint">Select an organism to add to the environment.</p>
+				<div class="seed-list" id="seedList"></div>
+				<div class="terrain-key"><p class="terrain-title">Terrain key</p><div class="terrain-legend" id="terrainLegend"></div></div>
+				<button class="create-species" id="createSpecies" type="button">Design a species</button>
+				<div class="side-foot"><span>✳</span> <span id="speciesCount">4 species</span></div>
+			</aside>
+
+			<section class="main-column" aria-label="Ecosystem simulation">
+				<div class="heading-row">
+					<div class="title-stack">
+						<p class="title-kicker"><span></span>Version 1.0</p>
+						<h1>Environment Name</h1>
+						<p class="subtitle">Something compelling</p>
+					</div>
+					<div class="heading-meta" aria-label="Simulation summary">
+						<button class="icon-button" id="sidebarExpand" type="button" title="Expand lifeform catalog" aria-label="Expand lifeform catalog" hidden>☷</button>
+						<div class="metric"><span class="metric-label">Population</span><span class="metric-value" id="populationCount">00</span></div>
+						<span class="heading-rule"></span>
+						<div class="metric"><span class="metric-label">Deaths</span><span class="metric-value" id="deathCount">00</span></div>
+					</div>
+				</div>
+
+				<div class="habitat-layout">
+					<div class="stage" id="stage" aria-label="Ecosystem habitat grid" role="region">
+						<div class="stage-world" id="stageWorld"></div>
+						<div class="stage-topline"><span class="stage-label">Environment</span><span class="stage-coordinate" id="habitatCount">0 organisms</span></div>
+						<div class="empty-state" id="emptyState" hidden>
+							<span class="empty-icon" aria-hidden="true">⌁</span>
+							<h2 class="empty-title">Habitat is empty</h2>
+							<p class="empty-copy">Select a lifeform to populate the habitat.</p>
+						</div>
+						<div class="stage-tools">
+							<button class="stage-tool" id="zoomOut" type="button" title="Zoom out" aria-label="Zoom out">−</button>
+							<button class="stage-tool" id="zoomIn" type="button" title="Zoom in" aria-label="Zoom in">+</button>
+						</div>
+					</div>
+					<aside class="details-panel" aria-label="Selected organism details">
+						<div class="details-head"><p class="eyebrow">Statistics</p><button class="collapse-button" id="clearSelection" type="button" title="Clear selection" aria-label="Clear selection">×</button></div>
+						<div class="inspector" id="inspector" aria-live="polite"><div class="inspect-empty">Select an organism to view its information</div></div>
+					</aside>
+				</div>
+			</section>
+		</main>
+
+		<section class="dock" id="dock" aria-label="Simulation controls and food schedule">
+			<div class="dock-head">
+				<div class="dock-tabs" role="tablist" aria-label="Simulation views">
+					<button class="dock-tab active" type="button" role="tab" aria-selected="true" data-view="overview">Stats</button>
+					<button class="dock-tab" type="button" role="tab" aria-selected="false" data-view="habitat">Food</button>
+				</div>
+				<div class="sim-controls">
+					<button class="play-button" id="playButton" type="button"><span id="playIcon">▶</span><span id="playText">Start</span></button>
+					<button class="stage-tool" id="resetButton" type="button" title="Reset simulation" aria-label="Reset simulation">↺</button>
+					<button class="collapse-button" id="dockCollapse" type="button" title="Collapse bottom menu" aria-label="Collapse bottom menu">⌄</button>
+				</div>
+			</div>
+			<div class="dock-body" id="dockBody" role="tabpanel"></div>
+		</section>
+
+		<dialog class="species-dialog" id="speciesDialog" aria-labelledby="speciesDialogTitle">
+				<div class="dialog-head"><div><h2 id="speciesDialogTitle">Design a species</h2><p>*Working on more options</p></div><button class="collapse-button" id="closeSpeciesDialog" type="button" aria-label="Close species designer">×</button></div>
+			<form class="dialog-form" id="speciesForm">
+				<div class="form-row">
+					<div class="form-field"><label for="speciesName">Species</label><input id="speciesName" name="name" maxlength="24" placeholder="e.g. Stegosaurus" required></div>
+					<div class="form-field"><label for="speciesColor">Color</label><input id="speciesColor" name="color" type="color" value="black"></div>
+				</div>
+				<div class="form-field"><label for="speciesDiet">Diet</label><select id="speciesDiet" name="diet"><option value="Herbivore">Herbivore</option><option value="Omnivore">Omnivore</option><option value="Insectivore">Insectivore</option><option value="Carnivore">Carnivore</option></select></div>
+				<div class="range-fields">
+					<div class="range-field"><label for="speciesHealth">Health</label><output id="healthOutput">50</output><input id="speciesHealth" name="health" type="range" min="1" max="100" value="50"></div>
+					<div class="range-field"><label for="speciesFoodNeed">Food needed</label><output id="foodNeedOutput">50</output><input id="speciesFoodNeed" name="foodNeed" type="range" min="1" max="100" value="50"></div>
+					<div class="form-field"><label for="speciesAppetite">Appetite</label><input id="speciesAppetite" name="appetite" type="number" min="1" max="10" step="1" value="1"></div>
+					<div class="range-field"><label for="speciesSpeed">Speed</label><output id="speedOutput">5</output><input id="speciesSpeed" name="speed" type="range" min="1" max="10" value="5"></div>
+					<div class="range-field"><label for="speciesEndurance">Endurance</label><output id="enduranceOutput">5</output><input id="speciesEndurance" name="endurance" type="range" min="1" max="10" value="5"></div>
+					<div class="range-field"><label for="speciesSize">Size level</label><output id="sizeOutput">5</output><input id="speciesSize" name="size" type="range" min="1" max="10" step="1" value="5"></div>
+					<div class="range-field"><label for="speciesLifespan">Lifespan</label><output id="lifespanOutput">50 years</output><input id="speciesLifespan" name="lifespan" type="range" min="1" max="100" value="50"></div>
+				</div>
+				<div class="dialog-actions"><button id="cancelSpecies" type="button">Cancel</button><button class="submit-species" type="submit">Add to catalog</button></div>
+			</form>
+		</dialog>
+		<div class="footer-note">Ecosystem Simulator © 2026</div>
+	</div>
+
+	<script>
+		let species = {
+			cow: { name: "Orange", kind: "bovine", color: "#db805d", traits: { health: 100, foodNeed: 100, appetite: 1, speed: 3, endurance: 10, size: 7, lifespan: 50 }, diet: "Herbivore" },
+			ladybug: { name: "Blue", kind: "insect", color: "#529b9b", traits: { health: 50, foodNeed: 100, appetite: 1, speed: 8, endurance: 10, size: 3, lifespan: 75 }, diet: "Herbivore" },
+			horse: { name: "Green", kind: "equine", color: "#729853", traits: { health: 75, foodNeed: 100, appetite: 1, speed: 5, endurance: 10, size: 5, lifespan: 100 }, diet: "Herbivore" },
+			rat: { name: "Yellow", kind: "rodent", color: "#d5aa46", traits: { health: 25, foodNeed: 100, appetite: 1, speed: 10, endurance: 10, size: 1, lifespan: 25 }, diet: "Herbivore" }
+		};
+		const foodType = { name: "Food", glyph: "●" };
+		const terrainTypes = [
+			{ name: "Tree", color: "#668552", glyph: "♣" },
+			{ name: "Rock", color: "#92958c", glyph: "◆" },
+			{ name: "Shrub", color: "#91a962", glyph: "❧" },
+			{ name: "Fallen log", color: "#a17b59", glyph: "▬" }
+		];
+		const terrainBlocks = [
+			{ type: "Tree", x: 12.5, y: 18.75, width: 4.1667, height: 12.5 },
+			{ type: "Rock", x: 33.3333, y: 31.25, width: 8.3333, height: 12.5 },
+			{ type: "Shrub", x: 66.6667, y: 12.5, width: 4.1667, height: 6.25 },
+			{ type: "Fallen log", x: 20.8333, y: 75, width: 12.5, height: 6.25 },
+			{ type: "Rock", x: 54.1667, y: 62.5, width: 8.3333, height: 6.25 },
+			{ type: "Tree", x: 83.3333, y: 62.5, width: 4.1667, height: 12.5 }
+		];
+		const state = { organisms: [], patches: [], deaths: 0, selectedId: null, running: false, seconds: 0, cycle: 0, zoom: 1, view: "overview", foodPerSpot: 15, foodEverySeconds: 10, foodElapsed: 0, showFoodAmounts: true, nextId: 1, nextPatchId: 1, nextSpeciesId: 1, collapsedSide: false, collapsedDock: false };
+		const stage = document.querySelector("#stage");
+		const world = document.querySelector("#stageWorld");
+		const sidebar = document.querySelector("#sidebar");
+		const inspector = document.querySelector("#inspector");
+		const speciesDialog = document.querySelector("#speciesDialog");
+		const organismElements = new Map();
+		const organismLabels = new Map();
+		const foodElements = new Map();
+		let renderedSelection = null;
+		let animationFrame = 0;
+		let lastFrameTime = null;
+		let renderedDockView = null;
+
+		function escapeHtml(value) {
+			return String(value).replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" })[character]);
+		}
+
+		function sizeInCells(level) {
+			return .5 + (Math.max(1, Math.min(10, Number(level))) - 1) * (2.5 / 9);
+		}
+
+		function sizeFootprint(level) {
+			return Math.ceil(sizeInCells(level));
+		}
+
+		function gridDimensions() {
+			const style = window.getComputedStyle(world);
+			return {
+				columns: Number(style.getPropertyValue("--grid-columns")) || 24,
+				rows: Number(style.getPropertyValue("--grid-rows")) || 16
+			};
+		}
+
+		function wrapIndex(value, count) {
+			return ((value % count) + count) % count;
+		}
+
+		function wrapCenterCell(value, size, limit) {
+			return wrapIndex(value, limit);
+		}
+
+		function wrappedCellDelta(from, to, size, limit) {
+			const period = limit;
+			const difference = to - from;
+			return difference - Math.round(difference / period) * period;
+		}
+
+		function wrapWorldPosition(x, y, size) {
+			const { columns, rows } = gridDimensions();
+			return {
+				x: wrapCenterCell(x / 100 * columns, size, columns) / columns * 100,
+				y: wrapCenterCell(y / 100 * rows, size, rows) / rows * 100
+			};
+		}
+
+		function cellSize() {
+			return stage.getBoundingClientRect().width / gridDimensions().columns;
+		}
+
+		function snapToCell(x, y, size = 1) {
+			const { columns, rows } = gridDimensions();
+			const column = Math.max(0, Math.min(columns - size, Math.floor(x / 100 * columns - size / 2)));
+			const row = Math.max(0, Math.min(rows - size, Math.floor(y / 100 * rows - size / 2)));
+			return { x: (column + size / 2) / columns * 100, y: (row + size / 2) / rows * 100 };
+		}
+
+		function terrainFootprints() {
+			const { columns, rows } = gridDimensions();
+			return terrainBlocks.map(block => ({
+				column: Math.round(block.x / 100 * columns),
+				row: Math.round(block.y / 100 * rows),
+				width: Math.max(1, Math.round(block.width / 100 * columns)),
+				height: Math.max(1, Math.round(block.height / 100 * rows))
+			}));
+		}
+
+		function isBlockedCell(column, row, size = 1, ignoreOrganismId = null, includeReservations = false, clearance = 0) {
+			const { columns, rows } = gridDimensions();
+			column = wrapIndex(column, columns - size + 1);
+			row = wrapIndex(row, rows - size + 1);
+			const overlaps = (left, top, width, height) => column < left + width && column + size > left && row < top + height && row + size > top;
+			const overlapsWrapped = (left, top, width, height) => [-columns, 0, columns].some(offsetX => [-rows, 0, rows].some(offsetY => overlaps(left + offsetX, top + offsetY, width, height)));
+			if (terrainFootprints().some(block => overlapsWrapped(block.column - clearance, block.row - clearance, block.width + clearance * 2, block.height + clearance * 2))) return true;
+			for (const food of state.patches) {
+				if (food.amount <= 0) continue;
+				const foodColumn = Math.floor(food.x / 100 * columns);
+				const foodRow = Math.floor(food.y / 100 * rows);
+				if (overlapsWrapped(foodColumn, foodRow, 1, 1)) return true;
+			}
+			for (const other of state.organisms) {
+				if (other.id === ignoreOrganismId) continue;
+				const otherSize = sizeFootprint(species[other.species].traits.size);
+				const centerColumn = wrapCenterCell(other.x / 100 * columns, otherSize, columns);
+				const centerRow = wrapCenterCell(other.y / 100 * rows, otherSize, rows);
+				if (overlapsWrapped(centerColumn - otherSize / 2, centerRow - otherSize / 2, otherSize, otherSize)) return true;
+				if (includeReservations && other.mode === "moving") {
+					const targetLeft = Math.round(other.targetX / 100 * columns - otherSize / 2);
+					const targetTop = Math.round(other.targetY / 100 * rows - otherSize / 2);
+					if (overlapsWrapped(targetLeft, targetTop, otherSize, otherSize)) return true;
+					if (other.path.some(([pathColumn, pathRow]) => overlapsWrapped(pathColumn, pathRow, otherSize, otherSize))) return true;
+				}
+			}
+			return false;
+		}
+
+		function isBlockedPosition(x, y, size, ignoreOrganismId, includeReservations = true, heading = 0) {
+			const { columns, rows } = gridDimensions();
+			const centerColumn = wrapCenterCell(x / 100 * columns, size, columns);
+			const centerRow = wrapCenterCell(y / 100 * rows, size, rows);
+			const halfExtent = size / 2 * (Math.abs(Math.cos(heading)) + Math.abs(Math.sin(heading)));
+			const left = centerColumn - halfExtent;
+			const top = centerRow - halfExtent;
+			const right = centerColumn + halfExtent;
+			const bottom = centerRow + halfExtent;
+			const overlaps = (otherLeft, otherTop, otherRight, otherBottom) => left < otherRight && right > otherLeft && top < otherBottom && bottom > otherTop;
+			const overlapsWrapped = (otherLeft, otherTop, otherRight, otherBottom) => [-columns, 0, columns].some(offsetX => [-rows, 0, rows].some(offsetY => overlaps(otherLeft + offsetX, otherTop + offsetY, otherRight + offsetX, otherBottom + offsetY)));
+			if (terrainFootprints().some(block => overlapsWrapped(block.column, block.row, block.column + block.width, block.row + block.height))) return true;
+			for (const food of state.patches) {
+				if (food.amount <= 0) continue;
+				const foodColumn = Math.floor(food.x / 100 * columns);
+				const foodRow = Math.floor(food.y / 100 * rows);
+				if (overlapsWrapped(foodColumn, foodRow, foodColumn + 1, foodRow + 1)) return true;
+			}
+			for (const other of state.organisms) {
+				if (other.id === ignoreOrganismId) continue;
+				const otherSize = sizeInCells(species[other.species].traits.size);
+				const otherColumn = wrapCenterCell(other.x / 100 * columns, otherSize, columns);
+				const otherRow = wrapCenterCell(other.y / 100 * rows, otherSize, rows);
+				const otherHalf = otherSize / 2 * (Math.abs(Math.cos(other.heading)) + Math.abs(Math.sin(other.heading)));
+				if (overlapsWrapped(otherColumn - otherHalf, otherRow - otherHalf, otherColumn + otherHalf, otherRow + otherHalf)) return true;
+				if (includeReservations && other.mode === "moving") {
+					const targetColumn = other.targetX / 100 * columns;
+					const targetRow = other.targetY / 100 * rows;
+					if (overlapsWrapped(targetColumn - otherSize / 2, targetRow - otherSize / 2, targetColumn + otherSize / 2, targetRow + otherSize / 2)) return true;
+					if (other.path.some(([column, row]) => overlapsWrapped(column, row, column + otherSize, row + otherSize))) return true;
+				}
+			}
+			return false;
+		}
+
+		function nearestOpenPosition(x, y, size = 1) {
+			const { columns, rows } = gridDimensions();
+			const footprint = Math.ceil(size);
+			let nearest = null;
+			let shortest = Infinity;
+			for (let row = 0; row < rows; row += 1) {
+				for (let column = 0; column < columns; column += 1) {
+					if (isBlockedCell(column, row, footprint)) continue;
+					const centerX = (column + size / 2) / columns * 100;
+					const centerY = (row + size / 2) / rows * 100;
+					const distance = (centerX - x) ** 2 + (centerY - y) ** 2;
+					if (distance < shortest) {
+						shortest = distance;
+						nearest = wrapWorldPosition(centerX, centerY, size);
+					}
+				}
+			}
+			return nearest || snapToCell(x, y, size);
+		}
+
+		function seedCatalog() {
+			document.querySelector("#seedList").innerHTML = Object.entries(species).map(([key, item]) => `
+				<button class="seed-card" type="button" data-species="${key}" aria-label="Add ${escapeHtml(item.name)}, ${escapeHtml(item.kind)}">
+					<span class="seed-art" style="--species-color:${item.color}" aria-hidden="true"></span>
+					<span class="seed-copy"><span class="seed-name">${escapeHtml(item.name)}</span><span class="seed-kind">${escapeHtml(item.kind)}</span></span>
+					<span class="add-mark" aria-hidden="true">+</span>
+				</button>`).join("");
+			document.querySelector("#speciesCount").textContent = `${Object.keys(species).length} species`;
+		}
+
+		function renderTerrain() {
+			document.querySelector("#terrainLegend").innerHTML = terrainTypes.map(terrain => `<span class="terrain-legend-item"><span class="terrain-swatch" style="--terrain-color:${terrain.color}" aria-hidden="true"></span>${terrain.name}</span>`).join("");
+			const { columns, rows } = gridDimensions();
+			for (const [index, block] of terrainBlocks.entries()) {
+				const terrain = terrainTypes.find(item => item.name === block.type);
+				const column = Math.round(block.x / 100 * columns);
+				const row = Math.round(block.y / 100 * rows);
+				const width = Math.max(1, Math.round(block.width / 100 * columns));
+				const height = Math.max(1, Math.round(block.height / 100 * rows));
+				const element = document.createElement("div");
+				element.className = "terrain-block";
+				element.dataset.terrainId = String(index);
+				element.style.left = `${column / columns * 100}%`;
+				element.style.top = `${row / rows * 100}%`;
+				element.style.width = `${width / columns * 100}%`;
+				element.style.height = `${height / rows * 100}%`;
+				element.style.setProperty("--terrain-color", terrain.color);
+				element.setAttribute("aria-label", terrain.name);
+				element.title = terrain.name;
+				element.textContent = terrain.glyph;
+				world.append(element);
+			}
+		}
+
+		function addOrganism(key, position) {
+			const item = species[key];
+			if (!item) return;
+			const id = state.nextId++;
+			const requestedPosition = position || { x: 20 + Math.random() * 60, y: 20 + Math.random() * 60 };
+			const start = nearestOpenPosition(requestedPosition.x, requestedPosition.y, sizeInCells(item.traits.size));
+			state.organisms.push({ id, species: key, name: `${item.name} ${id}`, x: start.x, y: start.y, targetX: start.x, targetY: start.y, path: [], goalFoodId: null, stuckFrames: 0, health: item.traits.health, maxHealth: item.traits.health, foodReserve: item.traits.foodNeed, hunger: 0, age: 0, mode: "resting", restRemaining: 0, moveDuration: 0, heading: Math.random() * Math.PI * 2 });
+			state.selectedId = id;
+			render();
+		}
+
+		function updateCounts() {
+			const count = String(state.organisms.length).padStart(2, "0");
+			document.querySelector("#populationCount").textContent = count;
+			document.querySelector("#deathCount").textContent = String(state.deaths).padStart(2, "0");
+			document.querySelector("#habitatCount").textContent = `${state.organisms.length} organism${state.organisms.length === 1 ? "" : "s"}`;
+			document.querySelector("#emptyState").hidden = state.organisms.length > 0 || state.patches.length > 0;
+		}
+
+		function drawInspector(organism) {
+			if (!organism) {
+				inspector.innerHTML = '<div class="inspect-empty">Select an organism to view its information.</div>';
+				return;
+			}
+			const item = species[organism.species];
+			inspector.style.setProperty("--species-color", item.color);
+			inspector.innerHTML = `
+				<div class="inspector-head"><span class="seed-art" style="--species-color:${item.color}" aria-hidden="true"></span><div><p class="inspector-name">${escapeHtml(item.name)}</p><p class="inspector-id">ENTITY #${String(organism.id).padStart(3, "0")} · ${escapeHtml(item.kind)}</p></div></div>
+				<div class="rename-field"><label for="individualName">Individual name</label><input id="individualName" type="text" maxlength="32" value="${escapeHtml(organism.name)}" aria-label="Individual name"></div>
+				<div class="trait-list">
+					<div class="trait"><span class="trait-name">Health</span><span class="trait-value" id="healthValue"></span><span class="trait-track"><span class="trait-fill" id="healthBar" style="background:${item.color}"></span></span></div>
+					<div class="trait"><span class="trait-name">Hunger</span><span class="trait-value" id="hungerValue"></span><span class="trait-track"><span class="trait-fill" id="hungerBar" style="background:#d28a58"></span></span></div>
+					<div class="trait"><span class="trait-name">Stomach Capacity</span><span class="trait-value">${item.traits.foodNeed}</span></div>
+					<div class="trait"><span class="trait-name">Appetite</span><span class="trait-value">${item.traits.appetite}</span></div>
+					<div class="trait"><span class="trait-name">Speed</span><span class="trait-value">${item.traits.speed}</span></div>
+					<div class="trait"><span class="trait-name">Endurance</span><span class="trait-value">${item.traits.endurance}</span></div>
+					<div class="trait"><span class="trait-name">Size</span><span class="trait-value">${sizeInCells(item.traits.size).toFixed(1)} × ${sizeInCells(item.traits.size).toFixed(1)} cells · ${item.traits.size}</span></div>
+					<div class="trait"><span class="trait-name">Age</span><span class="trait-value" id="ageValue"></span></div>
+					<div class="trait"><span class="trait-name">Lifespan</span><span class="trait-value">${item.traits.lifespan} years</span></div>
+					<div class="trait"><span class="trait-name">Diet</span><span class="trait-value">${escapeHtml(item.diet)}</span></div>
+				</div>`;
+			refreshInspectorValues(organism);
+		}
+
+		function refreshInspectorValues(organism = state.organisms.find(item => item.id === state.selectedId)) {
+			if (!organism || renderedSelection === null) return;
+			const item = species[organism.species];
+			const healthValue = document.querySelector("#healthValue");
+			if (!healthValue) return;
+			const hungerValue = document.querySelector("#hungerValue");
+			const ageValue = document.querySelector("#ageValue");
+			healthValue.textContent = `${Math.round(organism.health)} / ${organism.maxHealth}`;
+			hungerValue.textContent = `${Math.round(organism.hunger)} / 100`;
+			ageValue.textContent = `${organism.age} / ${item.traits.lifespan} years`;
+			document.querySelector("#healthBar").style.width = `${Math.max(0, Math.min(100, organism.health / organism.maxHealth * 100))}%`;
+			document.querySelector("#hungerBar").style.width = `${Math.max(0, Math.min(100, organism.hunger))}%`;
+		}
+
+		function renderDock() {
+			const body = document.querySelector("#dockBody");
+			if (state.view === "habitat") {
+				if (renderedDockView !== "habitat") {
+					body.innerHTML = `<div class="food-settings"><label for="foodAmount">Units per spot<input id="foodAmount" type="number" min="1" max="100" step="1" value="${state.foodPerSpot}"></label><label for="foodInterval">Spawn every (seconds)<input id="foodInterval" type="number" min="1" max="120" step="1" value="${state.foodEverySeconds}"></label><label class="food-visibility"><input id="showFoodAmounts" type="checkbox" ${state.showFoodAmounts ? "checked" : ""}> Show remaining</label><span class="food-next" id="foodNext"></span></div>`;
+					renderedDockView = "habitat";
+					updateFoodCountdown();
+				}
+				return;
+			}
+			renderedDockView = state.view;
+			const meanHealth = state.organisms.length ? Math.round(state.organisms.reduce((sum, organism) => sum + organism.health, 0)) : 0;
+			const startingHealth = state.organisms.length ? Math.round(state.organisms.reduce((sum, organism) => sum + organism.maxHealth, 0)) : 0;
+			const foodAmount = Math.round(state.patches.reduce((sum, patch) => sum + patch.amount, 0));
+			const rows = [ ["♥", "Health", `${meanHealth} / ${startingHealth}`], [foodType.glyph, "Food units", foodAmount]];
+			body.innerHTML = rows.map(([icon, label, value]) => `
+				<div class="dock-stat"><span class="stat-icon" aria-hidden="true">${icon}</span><span class="stat-copy"><span class="stat-label">${escapeHtml(label)}</span><span class="stat-value">${escapeHtml(value)}</span></span></div>`).join("");
+		}
+
+		function render() {
+			const liveOrganismIds = new Set(state.organisms.map(organism => organism.id));
+			for (const [id, element] of organismElements) {
+				if (!liveOrganismIds.has(id)) {
+					element.remove();
+					organismElements.delete(id);
+					organismLabels.delete(id);
+				}
+			}
+			const liveFoodIds = new Set(state.patches.map(patch => patch.id));
+			for (const [id, element] of foodElements) {
+				if (!liveFoodIds.has(id)) {
+					element.remove();
+					foodElements.delete(id);
+				}
+			}
+			for (const patch of state.patches) {
+				let marker = foodElements.get(patch.id);
+				if (!marker) {
+					marker = document.createElement("div");
+					marker.className = "habitat-resource";
+					marker.innerHTML = `<span aria-hidden="true">${foodType.glyph}</span><small class="food-amount"></small>`;
+					world.append(marker);
+					foodElements.set(patch.id, marker);
+				}
+				marker.style.left = `${patch.x}%`;
+				marker.style.top = `${patch.y}%`;
+				marker.style.setProperty("--cell-size", `${cellSize()}px`);
+				marker.classList.toggle("amount-hidden", !state.showFoodAmounts);
+				marker.setAttribute("aria-label", `Food, ${Math.round(patch.amount)} units remaining`);
+				marker.querySelector(".food-amount").textContent = Math.round(patch.amount);
+			}
+			for (const organism of state.organisms) {
+				const item = species[organism.species];
+				let button = organismElements.get(organism.id);
+				if (!button) {
+					button = document.createElement("button");
+					button.type = "button";
+					button.className = "organism";
+					const label = document.createElement("span");
+					label.className = "organism-name";
+					button.append(label);
+					organismLabels.set(organism.id, label);
+					button.addEventListener("click", event => { event.stopPropagation(); state.selectedId = organism.id; render(); });
+					world.append(button);
+					organismElements.set(organism.id, button);
+				}
+				button.style.left = `${organism.x}%`;
+				button.style.top = `${organism.y}%`;
+					button.style.setProperty("--entity-size", `${sizeInCells(item.traits.size) * cellSize()}px`);
+				button.style.setProperty("--species-color", item.color);
+				button.style.setProperty("--heading", `${organism.heading}rad`);
+				button.setAttribute("aria-label", `${organism.name}, entity ${organism.id}. View traits.`);
+				button.classList.toggle("selected", organism.id === state.selectedId);
+				button.classList.toggle("backing-up", Boolean(organism.isReversing));
+				organismLabels.get(organism.id).textContent = organism.name;
+			}
+			updateCounts();
+			if (renderedSelection !== state.selectedId) {
+				drawInspector(state.organisms.find(organism => organism.id === state.selectedId));
+				renderedSelection = state.selectedId;
+			}
+			refreshInspectorValues();
+			renderDock();
+			updateFoodCountdown();
+		}
+
+		function pointOnWorld(event) {
+			const rect = stage.getBoundingClientRect();
+			const x = 50 + ((event.clientX - rect.left - rect.width / 2) / state.zoom / rect.width) * 100;
+			const y = 50 + ((event.clientY - rect.top - rect.height / 2) / state.zoom / rect.height) * 100;
+			return { x, y };
+		}
+
+		function updateFoodCountdown() {
+			const status = document.querySelector("#foodNext");
+			if (status) status.textContent = `Next spot in ${Math.max(0, state.foodEverySeconds - state.foodElapsed)} s`;
+		}
+
+		function spawnFood() {
+			const { columns, rows } = gridDimensions();
+			const start = Math.floor(Math.random() * columns * rows);
+			for (let offset = 0; offset < columns * rows; offset += 1) {
+				const cell = (start + offset) % (columns * rows);
+				const column = cell % columns;
+				const row = Math.floor(cell / columns);
+				if (isBlockedCell(column, row, 1)) continue;
+				state.patches.push({ id: state.nextPatchId++, type: "food", amount: state.foodPerSpot, x: (column + .5) / columns * 100, y: (row + .5) / rows * 100 });
+				return true;
+			}
+			return false;
+		}
+
+		function refreshHunger(organism) {
+			const capacity = species[organism.species].traits.foodNeed;
+			organism.hunger = capacity > 0 ? Math.max(0, Math.min(100, (1 - organism.foodReserve / capacity) * 100)) : 0;
+		}
+
+		function isHungry(organism) {
+			const capacity = species[organism.species].traits.foodNeed;
+			return capacity > 0 && organism.foodReserve <= capacity * .5;
+		}
+
+		function isWithinFoodRangeCells(column, row, size, foodColumn, foodRow) {
+			const { columns, rows } = gridDimensions();
+			column = wrapIndex(column, columns - size + 1);
+			row = wrapIndex(row, rows - size + 1);
+			const overlapsColumns = foodColumn >= column && foodColumn < column + size;
+			const overlapsRows = foodRow >= row && foodRow < row + size;
+			for (const foodX of [foodColumn - columns, foodColumn, foodColumn + columns]) {
+				for (const foodY of [foodRow - rows, foodRow, foodRow + rows]) {
+					const overlapsColumns = foodX >= column && foodX < column + size;
+					const overlapsRows = foodY >= row && foodY < row + size;
+					if (overlapsColumns && overlapsRows) continue;
+					const gapColumns = foodX < column ? column - foodX - 1 : foodX >= column + size ? foodX - column - size : 0;
+					const gapRows = foodY < row ? row - foodY - 1 : foodY >= row + size ? foodY - row - size : 0;
+					if (gapColumns === 0 && gapRows === 0) return true;
+				}
+			}
+			return false;
+		}
+
+		function isWithinFoodRange(organism, patch) {
+			const { columns, rows } = gridDimensions();
+			const size = sizeInCells(species[organism.species].traits.size);
+			const footprint = sizeFootprint(species[organism.species].traits.size);
+			const origin = organismGridOrigin(organism, size, columns, rows);
+			const foodColumn = Math.floor(patch.x / 100 * columns);
+			const foodRow = Math.floor(patch.y / 100 * rows);
+			return isWithinFoodRangeCells(origin.column, origin.row, footprint, foodColumn, foodRow);
+		}
+
+		function simulateCycle() {
+			if (state.seconds % 10 === 0) state.cycle += 1;
+			const survivors = [];
+			for (const organism of state.organisms) {
+				const item = species[organism.species];
+				if (state.seconds % 10 === 0) organism.age += 1;
+				const capacity = item.traits.foodNeed;
+				organism.foodReserve = Math.max(0, organism.foodReserve - item.traits.appetite);
+				refreshHunger(organism);
+				const foodPatch = state.patches.find(patch => patch.type === "food" && patch.amount > 0 && isWithinFoodRange(organism, patch));
+				if (foodPatch && capacity > 0 && isHungry(organism)) {
+					const meal = Math.min(capacity - organism.foodReserve, foodPatch.amount);
+					foodPatch.amount = Math.max(0, foodPatch.amount - meal);
+					organism.foodReserve += meal;
+					refreshHunger(organism);
+				}
+				if (organism.hunger > 70) organism.health = Math.max(0, organism.health - Math.max(.25, (organism.hunger - 65) * .025));
+				else organism.health = Math.min(organism.maxHealth, organism.health + .15);
+				if (organism.health <= 0 || organism.age >= item.traits.lifespan) {
+					state.deaths += 1;
+					if (state.selectedId === organism.id) state.selectedId = null;
+				} else {
+					survivors.push(organism);
+				}
+			}
+			state.organisms = survivors;
+			state.patches = state.patches.filter(patch => patch.amount > 0);
+		}
+
+		function findPath(startColumn, startRow, targetColumn, targetRow, size, ignoreOrganismId) {
+			const { columns, rows } = gridDimensions();
+			const originColumns = columns - size + 1;
+			const originRows = rows - size + 1;
+			startColumn = wrapIndex(startColumn, originColumns);
+			startRow = wrapIndex(startRow, originRows);
+			targetColumn = wrapIndex(targetColumn, originColumns);
+			targetRow = wrapIndex(targetRow, originRows);
+			const startKey = `${startColumn},${startRow}`;
+			const targetKey = `${targetColumn},${targetRow}`;
+			const queue = [[startColumn, startRow]];
+			const previous = new Map([[startKey, null]]);
+			const directions = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+			const clearance = Math.ceil(size * (Math.SQRT2 - 1) / 2);
+			for (let index = 0; index < queue.length; index += 1) {
+				const [column, row] = queue[index];
+				const currentKey = `${column},${row}`;
+				if (currentKey === targetKey) break;
+				for (const [dx, dy] of directions) {
+					const nextColumn = wrapIndex(column + dx, originColumns);
+					const nextRow = wrapIndex(row + dy, originRows);
+					const nextKey = `${nextColumn},${nextRow}`;
+					if (previous.has(nextKey) || isBlockedCell(nextColumn, nextRow, size, ignoreOrganismId, true, clearance)) continue;
+					if (dx !== 0 && dy !== 0 && (isBlockedCell(column + dx, row, size, ignoreOrganismId, true, clearance) || isBlockedCell(column, row + dy, size, ignoreOrganismId, true, clearance))) continue;
+					previous.set(nextKey, currentKey);
+					queue.push([nextColumn, nextRow]);
+				}
+			}
+			if (!previous.has(targetKey)) return [];
+			const path = [];
+			for (let key = targetKey; key !== startKey; key = previous.get(key)) {
+				path.push(key.split(",").map(Number));
+			}
+			return path.reverse();
+		}
+
+		function setTargetCell(organism, column, row) {
+			const { columns, rows } = gridDimensions();
+			const size = sizeInCells(species[organism.species].traits.size);
+			organism.targetX = (column + size / 2) / columns * 100;
+			organism.targetY = (row + size / 2) / rows * 100;
+		}
+
+		function organismGridOrigin(organism, size, columns, rows) {
+			const footprint = Math.ceil(size);
+			return {
+				column: wrapIndex(Math.floor(organism.x / 100 * columns - size / 2 + .000001), columns - footprint + 1),
+				row: wrapIndex(Math.floor(organism.y / 100 * rows - size / 2 + .000001), rows - footprint + 1)
+			};
+		}
+
+		function foodApproachCells(food, size, ignoreOrganismId) {
+			const { columns, rows } = gridDimensions();
+			const foodColumn = Math.floor(food.x / 100 * columns);
+			const foodRow = Math.floor(food.y / 100 * rows);
+			const candidates = new Map();
+			for (let row = foodRow - size - 1; row <= foodRow + 2; row += 1) {
+				for (let column = foodColumn - size - 1; column <= foodColumn + 2; column += 1) {
+					const wrappedColumn = wrapIndex(column, columns - size + 1);
+					const wrappedRow = wrapIndex(row, rows - size + 1);
+					if (!isWithinFoodRangeCells(wrappedColumn, wrappedRow, size, foodColumn, foodRow)) continue;
+					candidates.set(`${wrappedColumn},${wrappedRow}`, [wrappedColumn, wrappedRow]);
+				}
+			}
+			return [...candidates.values()].filter(([column, row]) => !isBlockedCell(column, row, size, ignoreOrganismId, true));
+		}
+
+		function findFoodRoute(organism) {
+			const item = species[organism.species];
+			if (!isHungry(organism)) return null;
+			const { columns, rows } = gridDimensions();
+			const size = sizeInCells(item.traits.size);
+			const footprint = sizeFootprint(item.traits.size);
+			const start = organismGridOrigin(organism, size, columns, rows);
+			let best = null;
+			for (const food of state.patches) {
+				if (food.amount <= 0 || food.type !== "food") continue;
+				if (isWithinFoodRange(organism, food)) return { food, path: [] };
+				for (const [column, row] of foodApproachCells(food, footprint, organism.id)) {
+					const path = findPath(start.column, start.row, column, row, footprint, organism.id);
+					if (path.length && (!best || path.length < best.path.length)) best = { food, path };
+				}
+			}
+			return best;
+		}
+
+		function setFoodDestination(organism) {
+			const goal = findFoodRoute(organism);
+			if (!goal) {
+				organism.mode = "resting";
+				organism.goalFoodId = null;
+				organism.path = [];
+				organism.restRemaining = .5;
+				return;
+			}
+			organism.goalFoodId = goal.food.id;
+			organism.path = goal.path;
+			organism.moveDuration = 0;
+			if (!organism.path.length) {
+				organism.mode = "feeding";
+				organism.restRemaining = .25;
+				return;
+			}
+			organism.mode = "moving";
+			setTargetCell(organism, ...organism.path.shift());
+		}
+
+		function setWanderDestination(organism, resetMoveDuration = true) {
+			const { columns, rows } = gridDimensions();
+			const size = sizeInCells(species[organism.species].traits.size);
+			const footprint = sizeFootprint(species[organism.species].traits.size);
+			const start = organismGridOrigin(organism, size, columns, rows);
+			if (resetMoveDuration) organism.moveDuration = 0;
+			organism.goalFoodId = null;
+			for (let attempt = 0; attempt < 14; attempt += 1) {
+				organism.heading += (Math.random() - .5) * 2;
+				const distance = 2 + Math.random() * 5;
+				const column = wrapIndex(Math.round(start.column + Math.cos(organism.heading) * distance), columns - footprint + 1);
+				const row = wrapIndex(Math.round(start.row + Math.sin(organism.heading) * distance), rows - footprint + 1);
+				if ((column === start.column && row === start.row) || isBlockedCell(column, row, footprint, organism.id, true)) continue;
+				const path = findPath(start.column, start.row, column, row, footprint, organism.id);
+				if (!path.length) continue;
+				organism.path = path;
+				organism.mode = "moving";
+				setTargetCell(organism, ...organism.path.shift());
+				return;
+			}
+			organism.path = [];
+			organism.mode = "resting";
+			organism.restRemaining = .5;
+		}
+
+		function setEscapeDestination(organism) {
+			const { columns, rows } = gridDimensions();
+			const size = sizeInCells(species[organism.species].traits.size);
+			const footprint = sizeFootprint(species[organism.species].traits.size);
+			const start = organismGridOrigin(organism, size, columns, rows);
+			const originColumns = columns - footprint + 1;
+			const originRows = rows - footprint + 1;
+			const directions = [[1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1]];
+			const offset = Math.floor(Math.random() * directions.length);
+			for (const distance of [2, 3, 4, 6, 8]) {
+				for (let index = 0; index < directions.length; index += 1) {
+					const [dx, dy] = directions[(index + offset) % directions.length];
+					const column = wrapIndex(start.column + dx * distance, originColumns);
+					const row = wrapIndex(start.row + dy * distance, originRows);
+					if ((column === start.column && row === start.row) || isBlockedCell(column, row, footprint, organism.id, true)) continue;
+					const path = findPath(start.column, start.row, column, row, footprint, organism.id);
+					if (!path.length) continue;
+					organism.path = path;
+					organism.mode = "moving";
+					organism.moveDuration = 0;
+					organism.stuckFrames = 0;
+					setTargetCell(organism, ...organism.path.shift());
+					return true;
+				}
+			}
+			organism.mode = "resting";
+			organism.restRemaining = .25;
+			organism.path = [];
+			organism.stuckFrames = 0;
+			return false;
+		}
+
+		function angleDelta(from, to) {
+			return Math.atan2(Math.sin(to - from), Math.cos(to - from));
+		}
+
+		function rotationIsClear(organism, heading) {
+			const change = angleDelta(organism.heading, heading);
+			const steps = Math.max(1, Math.ceil(Math.abs(change) / (Math.PI / 18)));
+			for (let index = 1; index <= steps; index += 1) {
+				const angle = organism.heading + change * index / steps;
+				if (isBlockedPosition(organism.x, organism.y, sizeInCells(species[organism.species].traits.size), organism.id, true, angle)) return false;
+			}
+			return true;
+		}
+
+		function chooseForwardHeading(organism, desiredHeading, delta, rate) {
+			const offsets = [0];
+			for (let offset = .12; offset <= Math.PI / 2; offset += .12) offsets.push(offset, -offset);
+			const tried = new Set();
+			let safeTurn = null;
+			const { columns, rows } = gridDimensions();
+			for (const offset of offsets) {
+				const desired = desiredHeading + offset;
+				const turn = Math.max(-Math.PI * 2 * delta, Math.min(Math.PI * 2 * delta, angleDelta(organism.heading, desired)));
+				const heading = (organism.heading + turn + Math.PI * 2) % (Math.PI * 2);
+				const key = heading.toFixed(5);
+				if (tried.has(key)) continue;
+				tried.add(key);
+				if (!rotationIsClear(organism, heading)) continue;
+				const forward = rate * delta;
+				const x = organism.x + Math.cos(heading) * forward / columns * 100;
+				const y = organism.y + Math.sin(heading) * forward / rows * 100;
+				const result = { heading, x, y, moves: !isBlockedPosition(x, y, sizeInCells(species[organism.species].traits.size), organism.id, true, heading), reversing: false };
+				if (result.moves) return result;
+				if (!safeTurn) safeTurn = { heading, x: organism.x, y: organism.y, moves: false };
+			}
+			if ((organism.stuckFrames || 0) >= 4) {
+				const { columns, rows } = gridDimensions();
+				const reverseX = organism.x - Math.cos(organism.heading) * rate * delta / columns * 100;
+				const reverseY = organism.y - Math.sin(organism.heading) * rate * delta / rows * 100;
+				if (!isBlockedPosition(reverseX, reverseY, sizeInCells(species[organism.species].traits.size), organism.id, true, organism.heading)) {
+					return { heading: organism.heading, x: reverseX, y: reverseY, moves: true, reversing: true };
+				}
+			}
+			return safeTurn;
+		}
+
+		function updateMovement(delta) {
+			for (const organism of state.organisms) {
+				const item = species[organism.species];
+				const hungry = isHungry(organism);
+				if (!hungry && organism.goalFoodId !== null) {
+					organism.mode = "resting";
+					organism.goalFoodId = null;
+					organism.path = [];
+					organism.restRemaining = 0;
+				} else if (hungry && organism.mode === "moving" && organism.goalFoodId === null) {
+					organism.mode = "resting";
+					organism.path = [];
+					organism.restRemaining = 0;
+				}
+				if (organism.mode === "feeding") {
+					const food = state.patches.find(patch => patch.id === organism.goalFoodId && patch.amount > 0);
+					if (hungry && food && isWithinFoodRange(organism, food)) continue;
+					organism.mode = "resting";
+					organism.restRemaining = 0;
+				}
+				if (organism.mode === "resting") {
+					organism.restRemaining -= delta;
+					if (organism.restRemaining > 0) continue;
+					if (hungry) setFoodDestination(organism);
+					else setWanderDestination(organism);
+					if (organism.mode !== "moving") continue;
+				}
+				const { columns, rows } = gridDimensions();
+				const size = sizeInCells(item.traits.size);
+				const footprint = sizeFootprint(item.traits.size);
+				const goalFood = organism.goalFoodId === null ? null : state.patches.find(patch => patch.id === organism.goalFoodId && patch.amount > 0);
+				if (organism.goalFoodId !== null && !goalFood) {
+					organism.mode = "resting";
+					organism.restRemaining = 0;
+					organism.goalFoodId = null;
+					continue;
+				}
+				const targetColumn = Math.round(organism.targetX / 100 * columns - size / 2);
+				const targetRow = Math.round(organism.targetY / 100 * rows - size / 2);
+				if (isBlockedCell(targetColumn, targetRow, footprint, organism.id, true)) {
+					organism.stuckFrames = (organism.stuckFrames || 0) + 1;
+					if (organism.stuckFrames >= 12) setEscapeDestination(organism);
+					else {
+						organism.mode = "resting";
+						organism.restRemaining = .2;
+						organism.path = [];
+					}
+					continue;
+				}
+				const dx = wrappedCellDelta(organism.x / 100 * columns, organism.targetX / 100 * columns, size, columns);
+				const dy = wrappedCellDelta(organism.y / 100 * rows, organism.targetY / 100 * rows, size, rows);
+				const remaining = Math.hypot(dx, dy);
+				const rate = item.traits.speed * 0.25;
+				if (rate === 0) continue;
+				if (remaining > .035) {
+					const desiredHeading = Math.atan2(dy, dx);
+					const step = chooseForwardHeading(organism, desiredHeading, delta, rate);
+					if (!step) {
+						organism.stuckFrames = (organism.stuckFrames || 0) + 1;
+						if (organism.stuckFrames >= 12) setEscapeDestination(organism);
+						else {
+							organism.mode = "resting";
+							organism.restRemaining = .2;
+							organism.path = [];
+						}
+						continue;
+					}
+					organism.heading = step.heading;
+					organism.isReversing = Boolean(step.reversing);
+					const wrappedPosition = wrapWorldPosition(step.x, step.y, size);
+					organism.x = wrappedPosition.x;
+					organism.y = wrappedPosition.y;
+					if (!step.moves) {
+						organism.stuckFrames = (organism.stuckFrames || 0) + 1;
+						if (organism.stuckFrames >= 12) setEscapeDestination(organism);
+						const element = organismElements.get(organism.id);
+						if (element) element.style.setProperty("--heading", `${organism.heading}rad`);
+						continue;
+					}
+					if (step.moves) organism.stuckFrames = 0;
+				}
+				const remainingAfterStep = Math.hypot(
+					wrappedCellDelta(organism.x / 100 * columns, organism.targetX / 100 * columns, size, columns),
+					wrappedCellDelta(organism.y / 100 * rows, organism.targetY / 100 * rows, size, rows)
+				);
+				organism.moveDuration += delta;
+				if (remainingAfterStep <= .05) {
+					if (isBlockedPosition(organism.targetX, organism.targetY, size, organism.id, true, organism.heading)) {
+						organism.stuckFrames = (organism.stuckFrames || 0) + 1;
+						if (organism.stuckFrames >= 12) setEscapeDestination(organism);
+						continue;
+					}
+					organism.x = organism.targetX;
+					organism.y = organism.targetY;
+					const moveLimit = 2 + item.traits.endurance;
+					if (organism.moveDuration >= moveLimit) {
+						organism.mode = "resting";
+						organism.restRemaining = 10 - (item.traits.endurance);
+						organism.path = [];
+					} else if (organism.path.length) {
+						setTargetCell(organism, ...organism.path.shift());
+					} else if (goalFood && isWithinFoodRange(organism, goalFood)) {
+						organism.mode = "feeding";
+						organism.restRemaining = .25;
+					} else if (!goalFood) {
+						setWanderDestination(organism, false);
+					} else {
+						organism.mode = "resting";
+						organism.restRemaining = .2;
+					}
+				}
+				const element = organismElements.get(organism.id);
+				if (element) {
+					element.style.left = `${organism.x}%`;
+					element.style.top = `${organism.y}%`;
+					element.style.setProperty("--heading", `${organism.heading}rad`);
+				}
+			}
+		}
+
+		function animateWorld(time) {
+			if (!state.running) {
+				animationFrame = 0;
+				return;
+			}
+			const delta = lastFrameTime === null ? 0 : Math.min((time - lastFrameTime) / 1000, .05);
+			lastFrameTime = time;
+			updateMovement(delta);
+			animationFrame = window.requestAnimationFrame(animateWorld);
+		}
+
+		function startAnimation() {
+			if (animationFrame) return;
+			lastFrameTime = null;
+			animationFrame = window.requestAnimationFrame(animateWorld);
+		}
+
+		function stopAnimation() {
+			if (animationFrame) window.cancelAnimationFrame(animationFrame);
+			animationFrame = 0;
+			lastFrameTime = null;
+		}
+
+		seedCatalog();
+		renderTerrain();
+		render();
+
+		document.querySelector("#seedList").addEventListener("click", event => {
+			const card = event.target.closest("[data-species]");
+			if (card) addOrganism(card.dataset.species);
+		});
+		stage.addEventListener("click", event => { if (event.target === stage || event.target.id === "emptyState") { state.selectedId = null; render(); } });
+
+		document.querySelector("#playButton").addEventListener("click", () => {
+			state.running = !state.running;
+			document.querySelector("#playText").textContent = state.running ? "Pause" : "Start";
+			document.querySelector("#playIcon").textContent = state.running ? "Ⅱ" : "▶";
+			document.querySelector("#statusText").textContent = state.running ? "Simulation running" : "Simulation paused";
+			document.querySelector("#runStatus").classList.toggle("is-paused", !state.running);
+			if (state.running) startAnimation();
+			else stopAnimation();
+		});
+		document.querySelector("#dockBody").addEventListener("input", event => {
+			if (event.target.value === "") return;
+			if (event.target.id === "foodAmount") state.foodPerSpot = Math.max(1, Math.min(10000, Math.round(Number(event.target.value))));
+			if (event.target.id === "foodInterval") state.foodEverySeconds = Math.max(1, Math.min(3600, Math.round(Number(event.target.value))));
+			updateFoodCountdown();
+		});
+		document.querySelector("#dockBody").addEventListener("change", event => {
+			if (event.target.id !== "showFoodAmounts") return;
+			state.showFoodAmounts = event.target.checked;
+			for (const marker of foodElements.values()) marker.classList.toggle("amount-hidden", !state.showFoodAmounts);
+		});
+		document.querySelector("#clearSelection").addEventListener("click", () => { state.selectedId = null; render(); });
+		inspector.addEventListener("input", event => {
+			if (event.target.id !== "individualName") return;
+			const organism = state.organisms.find(item => item.id === state.selectedId);
+			if (!organism) return;
+			organism.name = event.target.value;
+			organismElements.get(organism.id)?.setAttribute("aria-label", `${organism.name || "Unnamed"}, entity ${organism.id}. View traits.`);
+			const label = organismLabels.get(organism.id);
+			if (label) label.textContent = organism.name || "Unnamed";
+		});
+		document.querySelector("#createSpecies").addEventListener("click", () => speciesDialog.showModal());
+		document.querySelector("#closeSpeciesDialog").addEventListener("click", () => speciesDialog.close());
+		document.querySelector("#cancelSpecies").addEventListener("click", () => speciesDialog.close());
+		for (const [inputId, outputId] of [["speciesHealth", "healthOutput"], ["speciesFoodNeed", "foodNeedOutput"], ["speciesSpeed", "speedOutput"], ["speciesEndurance", "enduranceOutput"], ["speciesSize", "sizeOutput"], ["speciesLifespan", "lifespanOutput"]]) {
+			document.querySelector(`#${inputId}`).addEventListener("input", event => { document.querySelector(`#${outputId}`).textContent = inputId === "speciesLifespan" ? `${event.target.value} years` : inputId === "speciesSize" ? `${event.target.value} / 10 · ${sizeInCells(event.target.value).toFixed(1)} × ${sizeInCells(event.target.value).toFixed(1)} cells` : `${event.target.value} / 100`; });
+		}
+		document.querySelector("#speciesForm").addEventListener("submit", event => {
+			event.preventDefault();
+			const name = document.querySelector("#speciesName").value.trim();
+			if (!name) return;
+			const key = `custom-${state.nextSpeciesId++}`;
+			const diet = document.querySelector("#speciesDiet").value;
+			species[key] = {
+				name,
+				kind: "custom species",
+				color: document.querySelector("#speciesColor").value,
+				traits: {
+					health: Number(document.querySelector("#speciesHealth").value),
+					foodNeed: Number(document.querySelector("#speciesFoodNeed").value),
+					appetite: Math.max(0, Number(document.querySelector("#speciesAppetite").value)),
+					speed: Number(document.querySelector("#speciesSpeed").value),
+					endurance: Number(document.querySelector("#speciesEndurance").value),
+					size: Number(document.querySelector("#speciesSize").value),
+					lifespan: Number(document.querySelector("#speciesLifespan").value)
+				},
+				diet
+			};
+			seedCatalog();
+			speciesDialog.close();
+			document.querySelector("#speciesForm").reset();
+			for (const [inputId, outputId] of [["speciesHealth", "healthOutput"], ["speciesFoodNeed", "foodNeedOutput"], ["speciesSpeed", "speedOutput"], ["speciesEndurance", "enduranceOutput"], ["speciesSize", "sizeOutput"], ["speciesLifespan", "lifespanOutput"]]) {
+				const value = document.querySelector(`#${inputId}`).value;
+					document.querySelector(`#${outputId}`).textContent = inputId === "speciesLifespan" ? `${value} years` : inputId === "speciesSize" ? `${value} / 10 · ${sizeInCells(value).toFixed(1)} × ${sizeInCells(value).toFixed(1)} cells` : `${value} / 100`;
+			}
+		});
+		document.querySelector("#sidebarCollapse").addEventListener("click", () => {
+			state.collapsedSide = !state.collapsedSide;
+			sidebar.classList.toggle("collapsed", state.collapsedSide);
+			document.querySelector(".workspace").classList.toggle("sidebar-collapsed", state.collapsedSide);
+			document.querySelector("#sidebarCollapse").textContent = state.collapsedSide ? "›" : "‹";
+			document.querySelector("#sidebarCollapse").title = state.collapsedSide ? "Expand lifeform catalog" : "Collapse lifeform catalog";
+			document.querySelector("#sidebarCollapse").setAttribute("aria-label", document.querySelector("#sidebarCollapse").title);
+			document.querySelector("#sidebarExpand").hidden = !state.collapsedSide;
+		});
+		document.querySelector("#sidebarExpand").addEventListener("click", () => document.querySelector("#sidebarCollapse").click());
+		document.querySelector("#dockCollapse").addEventListener("click", () => {
+			state.collapsedDock = !state.collapsedDock;
+			document.querySelector("#dock").classList.toggle("collapsed", state.collapsedDock);
+			document.querySelector("#dockBody").hidden = state.collapsedDock;
+			document.querySelector("#dockCollapse").textContent = state.collapsedDock ? "⌃" : "⌄";
+			document.querySelector("#dockCollapse").title = state.collapsedDock ? "Expand bottom menu" : "Collapse bottom menu";
+			document.querySelector("#dockCollapse").setAttribute("aria-label", document.querySelector("#dockCollapse").title);
+		});
+		document.querySelector("#resetButton").addEventListener("click", () => {
+			stopAnimation();
+			state.organisms = [];
+			state.patches = [];
+			state.deaths = 0;
+			state.selectedId = null;
+			state.seconds = 0;
+			state.cycle = 0;
+			state.foodElapsed = 0;
+			state.running = false;
+			state.nextId = 1;
+			state.nextPatchId = 1;
+			document.querySelector("#playText").textContent = "Start";
+			document.querySelector("#playIcon").textContent = "▶";
+			document.querySelector("#statusText").textContent = "Simulation paused";
+			document.querySelector("#runStatus").classList.add("is-paused");
+			render();
+		});
+		document.querySelectorAll(".dock-tab").forEach(tab => tab.addEventListener("click", () => {
+			state.view = tab.dataset.view;
+			document.querySelectorAll(".dock-tab").forEach(item => { const active = item === tab; item.classList.toggle("active", active); item.setAttribute("aria-selected", String(active)); });
+			renderDock();
+		}));
+		document.querySelector("#zoomIn").addEventListener("click", () => { state.zoom = Math.min(2, state.zoom + 0.1); world.style.setProperty("--zoom", state.zoom); });
+		document.querySelector("#zoomOut").addEventListener("click", () => { state.zoom = Math.max(.5, state.zoom - 0.1); world.style.setProperty("--zoom", state.zoom); });
+
+		window.setInterval(() => {
+			if (!state.running) return;
+			state.seconds += 1;
+			state.foodElapsed += 1;
+			if (state.foodElapsed >= state.foodEverySeconds) {
+				state.foodElapsed = 0;
+				spawnFood();
+			}
+			simulateCycle();
+			render();
+		}, 1000);
+	</script>
+</body>
+</html>
