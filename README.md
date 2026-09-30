@@ -1,4 +1,4 @@
-# Ecosystem_Beta
+# Ecosystem_Simulator_Beta
 
 # Summary:
 - I want to make a simulator of life. 
